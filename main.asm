@@ -18,8 +18,39 @@ fib_num: .space 20
 
 # iterative fib 
 FIB_ITER:
-    addi $v0, $zero, 1021
-    jr $ra
+# check base case (n <= 1) return n; -> 1 < n
+    addi $t2, $zero, 1 # create temp with 1 to compare to argument n
+    slt $t3, $t2, $a0 # if t2/ 1 < a0/ n, set flag = true (1)
+    bne $zero, $t3, IF # base case not satisfied, flag = 0, continue to loop
+
+# n is not valid, return n
+    add $t2, $zero, $a0 # t2 will eventually be returned as result at END
+    j RETURN_FIB_ITER # go to where we store the result 
+
+# n is valid, compute fib
+    IF:
+        # init vars
+        addi $t2, $zero, 0 # set t2 = 0, t2 will be the result of fib sum
+        addi $t0, $zero, 0 # prev1 = 0
+        addi $t1, $zero, 1 # prev2 = 1
+        addi $t3, $zero, 2 # i = 2
+    
+    loop: slt $t4, $a0, $t3 # check if n < i
+        bne $t4, $zero, RETURN_FIB_ITER # break loop if flag = true
+        add $t2, $t0, $t1 # result = prev1 + prev2
+        add $t0, $zero, $t1 # prev1 = prev2
+        add $t1, $zero, $t2 # prev2 = result
+        addi $t3, $t3, 1 # increment i, ++i
+        j loop
+
+    RETURN_FIB_ITER:
+        add $v0, $zero, $t2 # put result (t2) into return register
+        jr $ra
+
+# recursive fib sequence
+FIB_REC:
+    # check base case (n <= 1) return n;
+    
 
 main:
 
@@ -43,12 +74,17 @@ main:
     add $a0, $zero, $v1 # move previously computed result from v1 to a0 for print
     syscall # print result from iter fib() from reg. v1
 
+# call fib recursive
+    jal FIB_REC
+
 
 
 
 
 
 la $a0, DONE
+
+# print end mssg 
 li $v0, 4
 syscall 
 
