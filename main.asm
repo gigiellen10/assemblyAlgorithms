@@ -6,10 +6,13 @@
 .data 
 FIB_MSSG: .asciiz "Enter an integer to compute the fibbonacci sequence for: "
 FIB_OUTPUT_ITER: .asciiz "The result of the iterative fib sequence is: "
-FIB_OUTPUT_REC: .asciiz "The result of the recursive fib sequence is: "
-DONE: .asciiz "\nProgram terminating!"
+FIB_OUTPUT_REC: .asciiz "\nThe result of the recursive fib sequence is: "
+PROMPT_NUMBER: .asciiz "\nEnter integer #" # first part of prompting user for an array of 10
+CONTINUE_PROMPT_NUMBER: .asciiz " in SORTED ORDER to be used in input array of size 10: " # second part of prompting user for an array of 10
+DONE: .asciiz "\nProgram terminating!" # for ensuring proper exit of program
 
 fib_num: .space 20
+arr: .word 0:10 # integer array of size 10, elements init to 0
 
 # program code in following section
 
@@ -87,6 +90,7 @@ FIB_REC:
 
     jr $ra # return fib sum
 
+# ************* MAIN STARTS HERE ************
 main:
 
 # prompt user for a number to compute the fib sequence of
@@ -97,7 +101,7 @@ main:
 # get user input for number to compute fib sequence of 
     li $v0, 5 # 5 = syscall for read integer
     syscall # read user input into $v0
-    addi $sp, $sp, -4 # **make room to store 
+    addi $sp, $sp, -4 # make room to store 
     sw $v0, 0($sp) # save user input to be used later in recursive version of fib
     add $a0, $zero, $v0 # load into adress register to be used in fib function
 
@@ -113,7 +117,7 @@ main:
 
 # call fib recursive
     lw $a0, 0($sp) # load saved n taken from user into $a0 for argument to recursive fib
-    addi $sp, $sp, 4 # **put stack back to previous position
+    addi $sp, $sp, 4 # put stack back to previous position
     jal FIB_REC
     add $v1, $zero, $v0 # take result from v0 and store to v1 so we can syscall with v0
     la $a0, FIB_OUTPUT_REC # print output for recursive fun
@@ -122,6 +126,37 @@ main:
     li $v0, 1 # code = 1 to print integer
     add $a0, $zero, $v1 # move previously computed result from v1 to a0 for print
     syscall # print result from iter fib() from reg. v1
+
+# prompt user for an array of size 10 and perform binary search -- note: no error checking on user input
+    
+    addi $t0, $zero, 0 # i = index to array
+    addi $t2, $zero, 0 # count = counter for controlling loop
+    
+    input_loop: slti $t1, $t2, 10 # if (count < 10) flag = 1 -> 10 iterations
+        beq $t1, $zero, END_INPUT_LOOP # case where flag = 0, done with reading integers
+        addi $v0, $zero, 4 # print mssg for getting integer number n
+        la $a0, PROMPT_NUMBER # load first part of mssg
+        syscall 
+        addi $v0, $zero, 1 # print k, where k is the kth integer we've loaded into our array so far (0 indexing)
+        add $a0, $zero, $t2 # argument to print
+        syscall
+        addi $v0, $zero, 4 # print mssg for getting integer number n
+        la $a0, CONTINUE_PROMPT_NUMBER # load first part of mssg
+        syscall # finish prompt
+
+        # load integer input into corresponding index in array
+        addi $v0, $zero, 5 # 5 = syscall for read integer
+        syscall # read user input into $v0
+        add $t3, $zero, $v0
+        sw $t3, arr($t0) # arr[i] = user_input
+
+        addi $t0, $t0, 4 # ++i, update 4 bytes to go to next index
+        addi $t2, $t2, 1 # ++count
+        j input_loop
+    
+    END_INPUT_LOOP: 
+        # load arguments for BS
+        # call binary search function
 
 
 # print end mssg 
