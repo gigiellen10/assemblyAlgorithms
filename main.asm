@@ -9,6 +9,9 @@ FIB_OUTPUT_ITER: .asciiz "The result of the iterative fib sequence is: "
 FIB_OUTPUT_REC: .asciiz "\nThe result of the recursive fib sequence is: "
 PROMPT_NUMBER: .asciiz "\nEnter integer #" # first part of prompting user for an array of 10
 CONTINUE_PROMPT_NUMBER: .asciiz " in SORTED ORDER to be used in input array of size 10: " # second part of prompting user for an array of 10
+GET_SEARCH: .asciiz "\nEnter an integer to search for in the array: " 
+NOT_FOUND: .asciiz "\nSorry, your target value was not found in the array!"
+WAS_FOUND: .asciiz "\nYour target value was found at index "
 DONE: .asciiz "\nProgram terminating!" # for ensuring proper exit of program
 
 fib_num: .space 20
@@ -17,7 +20,7 @@ arr: .word 0:10 # integer array of size 10, elements init to 0
 # program code in following section
 
 .text
-.globl main # had main label with colon but was erroring
+.globl main 
 
 # iterative fib 
 FIB_ITER:
@@ -90,6 +93,46 @@ FIB_REC:
 
     jr $ra # return fib sum
 
+# assume array to search is in a0, and target val is in a1
+BINARY_SEARCH:
+    addi $t0, $zero, 0 # create low and high indexes, t0 = low, t1 = high
+    addi $t1, $zero, 9 # assuming fixed size array of 10 here
+
+search_loop: # *********INDEXING*************4
+    slt $t2, $t1, $t0 # high < low -> return -1 
+    bne $zero, $t2, no_target # if t2 = 1, we did not find target
+
+    # compute mid, (t3)
+    sub $t3, $t1, $t0 # high - low
+    srl $t3, $t3, 1 # divide by 2 one statement
+    add $t3, $t3, $t0 # + low 
+    sll $t3, $t3, 2 # mult by 4 to get number of bytes
+
+    add $t5, $t3, $a0 # calculate address of arr[mid]
+    lw $t4, 0($t5) # store arr[mid] in t4 
+    srl $t3, $t3, 2 # convert mid back to 1 indexing 
+
+    # if target < arr[mid]
+    slt $t5, $a1, $t4 
+    beq $t5, $zero, else_if
+    addi $t1, $t3, -1 # high = mid - 1 
+    j search_loop # loop again
+
+    # else if target > arr[mid] 
+    else_if: 
+    beq $a1, $t4, else # check else condition, arr[mid] == target
+    addi $t0, $t3, 1 # low = mid + 1
+    j search_loop
+
+    else:
+    add $v0, $zero, $t3 # return mid
+    jr $ra 
+    # ***** j search_loop 
+
+no_target: 
+    addi $v0, $zero, -1 # did not find the target
+    jr $ra 
+
 # ************* MAIN STARTS HERE ************
 main:
 
@@ -133,7 +176,7 @@ main:
     addi $t2, $zero, 0 # count = counter for controlling loop
     
     input_loop: slti $t1, $t2, 10 # if (count < 10) flag = 1 -> 10 iterations
-        beq $t1, $zero, END_INPUT_LOOP # case where flag = 0, done with reading integers
+        beq $t1, $zero, end_input_loop # case where flag = 0, done with reading integers
         addi $v0, $zero, 4 # print mssg for getting integer number n
         la $a0, PROMPT_NUMBER # load first part of mssg
         syscall 
@@ -154,11 +197,41 @@ main:
         addi $t2, $t2, 1 # ++count
         j input_loop
     
-    END_INPUT_LOOP: 
-        # load arguments for BS
+    end_input_loop: 
+        # prompt user to enter a target to search for
+        addi $v0, $zero, 4 
+        la $a0, GET_SEARCH
+        syscall 
+        addi $v0, $zero, 5
+        syscall 
+
+        # load arguments for BS -> (arg1 = arr[], arg2 = target_val)
+        la $a0, arr
+        add $a1, $zero, $v0
+        
         # call binary search function
+        jal BINARY_SEARCH
+        addi $t0, $zero, -1
+        beq $t0, $v0, not_found # bin search returned -1, target not found
 
+        # otherwise, print return value of bin search
+        add $s0, $zero, $v0 # save return val of bin search before using v0
+        addi $v0, $zero, 4
+        la $a0, WAS_FOUND
+        syscall
+        addi $v0, $zero, 1 
+        add $a0, $zero, $s0 # load value to print into argument
+        syscall
+        j END_PROGRAM # go to terminate program
 
+    not_found:
+        # print not found mssg
+        addi $v0, $zero, 4
+        la $a0, NOT_FOUND
+        syscall
+    
+
+END_PROGRAM: 
 # print end mssg 
     la $a0, DONE
     li $v0, 4
